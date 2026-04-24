@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl build-essential libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV PATH="/root/.local/bin:$PATH"
+
+WORKDIR /app
+
+COPY pyproject.toml poetry.lock* ./
+RUN poetry config virtualenvs.in-project true && \
+    poetry install --only main,dashboard --no-root --no-interaction --no-ansi
+
+COPY hierarchical_forecast/ ./hierarchical_forecast/
+COPY dashboard/ ./dashboard/
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app" \
+    PYTHONUNBUFFERED=1
+
+EXPOSE 8501
+
+CMD ["python", "-m", "streamlit", "run", "dashboard/app.py", \
+     "--server.port=8501", "--server.address=0.0.0.0", \
+     "--server.headless=true"]
